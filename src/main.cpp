@@ -74,7 +74,6 @@ int main() {
            */
           pid.UpdateError(cte);
           steer_value = deg2rad(angle)/pi() - pid.TotalError();
-          //steer_value = pid.TotalError();
           if (steer_value > 1.0) steer_value = 1.0;
           if (steer_value < -1.0) steer_value = -1.0;
 
@@ -86,7 +85,6 @@ int main() {
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
-          // DEBUG
           cte_vector.push_back(cte);
           if (fabs(cte) > 3.0) {
             std::cout << cte_vector.size() << std::endl;
@@ -103,9 +101,6 @@ int main() {
             std::cout << cte_vector.size() << std::endl;
             cte_vector.clear();
 
-            // TRY
-            //string msg = "42[\"reset\",{}]";
-            //ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
             exit(0);
           }
           step++;
