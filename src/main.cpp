@@ -5,6 +5,9 @@
 #include "json.hpp"
 #include "PID.h"
 
+#include <cstdlib>
+#include <vector>
+
 // for convenience
 using nlohmann::json;
 using std::string;
@@ -35,10 +38,16 @@ int main() {
 
   PID pid;
   /**
-   * TODO: Initialize the pid variable.
+   * Initialize the pid variable.
    */
+  double Kp = 0.2;
+  double Kd = 4.0;
+  double Ki = 0.0005;
+  pid.Init(Kp, Ki, Kd);
 
-  h.onMessage([&pid](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
+  int step = 0;
+  std::vector<double> cte_vector;
+  h.onMessage([&pid, &step, &cte_vector](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, 
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -58,22 +67,48 @@ int main() {
           double angle = std::stod(j[1]["steering_angle"].get<string>());
           double steer_value;
           /**
-           * TODO: Calculate steering value here, remember the steering value is
+           * Calculate steering value here, remember the steering value is
            *   [-1, 1].
            * NOTE: Feel free to play around with the throttle and speed.
            *   Maybe use another PID controller to control the speed!
            */
-          
-          // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value 
-                    << std::endl;
+          pid.UpdateError(cte);
+          steer_value = deg2rad(angle)/pi() - pid.TotalError();
+          //steer_value = pid.TotalError();
+          if (steer_value > 1.0) steer_value = 1.0;
+          if (steer_value < -1.0) steer_value = -1.0;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
+
           msgJson["throttle"] = 0.3;
+
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+
+          // DEBUG
+          cte_vector.push_back(cte);
+          if (fabs(cte) > 3.0) {
+            std::cout << cte_vector.size() << std::endl;
+            exit(0);
+          }
+
+          if (step > 7000) {
+            double sum2 = 0.0;
+            for (double cte : cte_vector) {
+              sum2 += cte*cte;
+            }
+            std::cout << "Accum CTE^2: " << sum2 << std::endl;
+            std::cout << "Avg CTE: " << sum2 / cte_vector.size() << std::endl;
+            std::cout << cte_vector.size() << std::endl;
+            cte_vector.clear();
+
+            // TRY
+            //string msg = "42[\"reset\",{}]";
+            //ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+            exit(0);
+          }
+          step++;
         }  // end "telemetry" if
       } else {
         // Manual driving
